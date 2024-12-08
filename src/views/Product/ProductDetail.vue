@@ -57,9 +57,10 @@
         <button 
           class="btn btn-success btn-lg w-100 mb-4" 
           @click="addToCart"
+          :disabled="!product.inStock"
         >
           <i class="fas fa-shopping-cart me-2"></i>
-          Thêm vào giỏ hàng
+          {{ product.inStock ? 'Thêm vào giỏ hàng' : 'Hết hàng' }}
         </button>
 
         <!-- Thông tin chi tiết -->
@@ -100,10 +101,16 @@
 </template>
 
 <script>
+import { useCartStore } from '@/store/cart'
 import products from '@/data/product'
+import Swal from 'sweetalert2'
 
 export default {
   name: 'ProductDetail',
+  setup() {
+    const cartStore = useCartStore()
+    return { cartStore }
+  },
   data() {
     return {
       product: null,
@@ -132,19 +139,34 @@ export default {
         this.quantity--
       }
     },
-    addToCart() {
+    async addToCart() {
+      if (!this.product.inStock) return
+
       const cartItem = {
-        productId: this.product.id,
+        id: this.product.id,
         name: this.product.name,
         price: this.calculateFinalPrice,
         quantity: this.quantity,
         image: this.product.image
       }
       
-      console.log('Thêm vào giỏ:', cartItem)
+      // Thêm vào store
+      this.cartStore.addToCart(cartItem)
+
+      // Reset số lượng
       this.quantity = 1
-      
-      // TODO: Emit event hoặc dispatch action để xử lý thêm vào giỏ hàng
+
+      // Hiển thị thông báo
+      await Swal.fire({
+        icon: 'success',
+        title: 'Thành công!',
+        text: 'Đã thêm sản phẩm vào giỏ hàng',
+        showConfirmButton: false,
+        timer: 1500
+      })
+
+      // Tùy chọn: chuyển đến trang giỏ hàng
+      // this.$router.push('/cart')
     },
     loadProduct() {
       const id = parseInt(this.$route.params.id)
@@ -185,7 +207,7 @@ input[type="number"] {
   transition: all 0.3s;
 }
 
-.btn-success:hover {
+.btn-success:hover:not(:disabled) {
   background-color: #45a049;
   border-color: #45a049;
   transform: translateY(-2px);
@@ -194,5 +216,37 @@ input[type="number"] {
 /* Animation cho nút */
 .btn-success:active {
   transform: translateY(0);
+}
+
+/* Style cho badge giảm giá */
+.badge {
+  font-size: 0.9rem;
+  padding: 0.5em 0.8em;
+}
+
+/* Style cho thông tin sản phẩm */
+.product-info {
+  border-top: 1px solid #dee2e6;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Style cho loading spinner */
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .quantity-section .input-group {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
 }
 </style>

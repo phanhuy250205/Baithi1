@@ -25,34 +25,28 @@
       <div class="quantity-wrapper mb-3">
         <label class="form-label">Số lượng:</label>
         <div class="input-group">
-          <!-- Nút giảm -->
           <button 
             class="btn btn-outline-secondary" 
             type="button" 
             @click="decreaseQuantity"
             :disabled="quantity <= 1"
-            title="Giảm số lượng"
           >
             <i class="fas fa-minus"></i>
           </button>
           
-          <!-- Input số lượng -->
           <input 
             type="number" 
             class="form-control text-center" 
             v-model.number="quantity"
             min="1" 
             max="99"
-            :title="`Số lượng từ 1-99`"
           >
           
-          <!-- Nút tăng -->
           <button 
             class="btn btn-outline-secondary" 
             type="button" 
             @click="increaseQuantity"
             :disabled="quantity >= 99"
-            title="Tăng số lượng"
           >
             <i class="fas fa-plus"></i>
           </button>
@@ -62,21 +56,17 @@
       <!-- Các nút thao tác -->
       <div class="mt-auto">
         <div class="d-grid gap-2">
-          <!-- Nút xem chi tiết -->
           <router-link 
             :to="{ name: 'productDetail', params: { id: product.id }}" 
             class="btn btn-outline-primary"
-            title="Xem thông tin chi tiết sản phẩm"
           >
             <i class="fas fa-eye"></i> Chi tiết
           </router-link>
           
-          <!-- Nút thêm vào giỏ -->
           <button 
             class="btn btn-success" 
             type="button" 
-            @click="addToCart"
-            title="Thêm sản phẩm vào giỏ hàng"
+            @click="handleAddToCart"
           >
             <i class="fas fa-shopping-cart"></i> Thêm vào giỏ
           </button>
@@ -87,22 +77,30 @@
 </template>
 
 <script>
+import { useCartStore } from '@/store/cart'
+import Swal from 'sweetalert2'
+
 export default {
   name: 'ProductBox',
   props: {
-    // Nhận thông tin sản phẩm từ component cha
     product: {
       type: Object,
       required: true
     }
   },
+  
+  setup() {
+    const cartStore = useCartStore()
+    return { cartStore }
+  },
+
   data() {
     return {
-      quantity: 1 // Số lượng mặc định là 1
+      quantity: 1
     }
   },
+
   computed: {
-    // Tính giá sau khi giảm giá
     calculateFinalPrice() {
       if (this.product.discount) {
         return this.product.price * (1 - this.product.discount / 100)
@@ -110,39 +108,55 @@ export default {
       return this.product.price
     }
   },
+
   methods: {
-    // Format giá tiền theo định dạng VND
     formatPrice(price) {
       return price.toLocaleString('vi-VN')
     },
-    // Tăng số lượng
+
     increaseQuantity() {
       if (this.quantity < 99) {
         this.quantity++
       }
     },
-    // Giảm số lượng
+
     decreaseQuantity() {
       if (this.quantity > 1) {
         this.quantity--
       }
     },
-    // Xử lý thêm vào giỏ hàng
-    addToCart() {
-      this.$emit('add-to-cart', {
+
+    async handleAddToCart() {
+      // Tạo object sản phẩm với số lượng
+      const cartItem = {
         id: this.product.id,
         name: this.product.name,
-        price: this.product.price,
+        price: this.calculateFinalPrice, // Sử dụng giá sau giảm giá
         image: this.product.image,
-        quantity: 1
+        quantity: this.quantity
+      }
+
+      // Thêm vào giỏ hàng qua store
+      this.cartStore.addToCart(cartItem)
+
+      // Hiển thị thông báo thành công
+      await Swal.fire({
+        icon: 'success',
+        title: 'Thành công!',
+        text: 'Đã thêm sản phẩm vào giỏ hàng',
+        showConfirmButton: false,
+        timer: 1500
       })
+
+      // Reset số lượng về 1
+      this.quantity = 1
     }
   }
 }
 </script>
 
 <style scoped>
-/* Ẩn mũi tên mặc định của input number */
+/* Ẩn mũi tên của input number */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -153,22 +167,27 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Style cho card */
+/* Card styles */
 .card {
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .card:hover {
   transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
-/* Style cho hình ảnh */
+/* Image styles */
 .card-img-top {
   height: 200px;
   object-fit: cover;
+  border-top-left-radius: calc(0.375rem - 1px);
+  border-top-right-radius: calc(0.375rem - 1px);
 }
 
-/* Style cho tiêu đề */
+/* Title styles */
 .card-title {
   font-size: 1rem;
   height: 2.4em;
@@ -178,25 +197,62 @@ input[type="number"] {
   -webkit-box-orient: vertical;
 }
 
-/* Style cho nút thêm vào giỏ */
+/* Price styles */
+.price-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.original-price {
+  font-size: 0.9rem;
+}
+
+.final-price {
+  font-size: 1.1rem;
+}
+
+/* Button styles */
 .btn-success {
   background-color: #abc0ac;
   border-color: #abc0ac;
+  transition: all 0.3s ease;
 }
 
 .btn-success:hover {
   background-color: #45a049;
   border-color: #45a049;
+  transform: translateY(-2px);
 }
 
-/* Animation cho nút thêm vào giỏ */
-.card:hover .btn-success {
-  animation: pulse 1s infinite;
+.btn-outline-primary:hover {
+  transform: translateY(-2px);
 }
 
+/* Quantity input styles */
+.quantity-wrapper .input-group {
+  width: 120px;
+  margin: 0 auto;
+}
+
+.quantity-wrapper input {
+  text-align: center;
+  border-left: 0;
+  border-right: 0;
+}
+
+.quantity-wrapper .btn {
+  z-index: 0;
+}
+
+/* Animation */
 @keyframes pulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
+}
+
+.card:hover .btn-success {
+  animation: pulse 1s infinite;
 }
 </style>
